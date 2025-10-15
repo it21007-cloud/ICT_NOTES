@@ -62,10 +62,10 @@ function displayFiles(fileArray){
     });
 }
 
-// Load files from server
+// Load files from Render backend
 async function loadFiles(){
     try {
-        const res = await fetch(`http://localhost:3000/files/${encodeURIComponent(courseName)}`);
+        const res = await fetch(`https://ict-notes.onrender.com/files/${encodeURIComponent(courseName)}`); // <-- UPDATED
         files = await res.json();
         displayFiles(files);
     } catch(err){
