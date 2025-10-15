@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Course Portal</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+<h1>Welcome to Course Portal</h1>
+
+<!-- Admin Login -->
+<button onclick="showAdminLogin()">Admin Panel</button>
+<div id="adminLogin" style="display:none; margin-top:10px;">
+    <input type="password" id="adminPassword" placeholder="Enter admin password">
+    <button onclick="checkAdminPassword()">Enter</button>
+</div>
+
+<hr>
+
+<h2>Available Courses</h2>
+<input type="text" id="courseSearch" placeholder="Search courses">
+<ul id="courseList"></ul>
+</div>
+
+<script>
+const courseList = document.getElementById('courseList');
+
+function showAdminLogin(){
+    document.getElementById('adminLogin').style.display = 'block';
+}
+
+function checkAdminPassword(){
+    const pw = document.getElementById('adminPassword').value;
+    if(pw === '12345'){
+        window.location.href = 'admin.html';
+    } else {
+        alert('Incorrect password!');
+    }
+}
+
+// Load courses
+async function loadCourses(){
+    try {
+        const res = await fetch('http://localhost:3000/courses');
+        const courses = await res.json();
+        courseList.innerHTML = '';
+
+        if(courses.length === 0){
+            courseList.innerHTML = '<li>No courses available</li>';
+            return;
+        }
+
+        courses.forEach(c => {
+            const li = document.createElement('li');
+            li.textContent = c.name;
+            li.style.cursor = 'pointer';
+            li.onclick = () => window.location.href = `course.html?course=${encodeURIComponent(c.name)}`;
+            courseList.appendChild(li);
+        });
+
+    } catch(err){
+        console.error(err);
+        courseList.innerHTML = '<li>Error loading courses</li>';
+    }
+}
+
+// Filter courses
+document.getElementById('courseSearch').addEventListener('keyup', () => {
+    const filter = document.getElementById('courseSearch').value.toLowerCase();
+    document.querySelectorAll('#courseList li').forEach(li => {
+        li.style.display = li.textContent.toLowerCase().includes(filter) ? '' : 'none';
+    });
+});
+
+// Initial load
+loadCourses();
+</script>
+</body>
+</html>

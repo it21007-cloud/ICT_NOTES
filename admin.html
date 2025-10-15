@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<style>
+/* ===== Global Reset ===== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', Arial, sans-serif;
+}
+
+body {
+    background: #f0f2f5;
+    padding: 20px;
+    color: #1f2937;
+}
+
+/* ===== Container ===== */
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: #fff;
+    padding: 25px 30px;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+/* ===== Headings ===== */
+h1 {
+    font-size: 28px;
+    margin-bottom: 20px;
+    color: #111827;
+    text-align: center;
+}
+h2 {
+    font-size: 20px;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    color: #1e40af;
+}
+
+/* ===== Form Row (everything in one line) ===== */
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+input[type="text"], input[type="file"], select {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    flex: 1;
+    min-width: 150px;
+    transition: all 0.2s;
+}
+input[type="text"]:focus, select:focus, input[type="file"]:focus {
+    border-color: #3b82f6;
+    outline: none;
+}
+
+/* ===== Buttons ===== */
+button {
+    padding: 8px 14px;
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+button:hover {
+    background: #2563eb;
+}
+
+/* ===== Search Box ===== */
+.search-box {
+    margin: 10px 0;
+}
+.search-box input {
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    width: 100%;
+    max-width: 300px;
+}
+
+/* ===== Course & Files List ===== */
+ul {
+    list-style: none;
+    padding-left: 0;
+}
+li {
+    background: #f9fafb;
+    margin-bottom: 10px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+li .actions {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+ul ul li {
+    background: #eef2ff;
+    margin-left: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+ul ul li a {
+    margin-left: 10px;
+    color: #2563eb;
+    text-decoration: none;
+}
+ul ul li a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+    .form-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    button {
+        width: 100%;
+    }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Admin Panel</h1>
+
+<h2>Add Course</h2>
+<div class="form-row">
+    <input type="text" id="newCourse" placeholder="Course Name">
+    <button onclick="addCourse()">Add Course</button>
+</div>
+
+<h2>Add File</h2>
+<div class="form-row">
+    <select id="courseSelect"></select>
+    <input type="text" id="fileTitle" placeholder="File Title">
+    <input type="text" id="fileURL" placeholder="File URL (or YouTube)">
+    <input type="file" id="fileUpload">
+    <button onclick="addFile()">Add via URL</button>
+    <button onclick="uploadFile()">Upload from Laptop</button>
+</div>
+
+<h2>Existing Courses</h2>
+<div class="search-box">
+    <input type="text" id="courseSearch" placeholder="Search Courses..." oninput="filterCourses()">
+</div>
+<ul id="adminCourseList"></ul>
+
+</div>
+
+<script>
+const courseSelect = document.getElementById('courseSelect');
+const adminCourseList = document.getElementById('adminCourseList');
+const apiBase = 'http://localhost:3000'; 
+let allCourses = [];
+
+// Load courses
+async function loadCourses() {
+    try {
+        const res = await fetch(`${apiBase}/courses`);
+        const courses = await res.json();
+        allCourses = courses;
+        renderCourses(courses);
+
+        // Populate dropdown
+        courseSelect.innerHTML = '';
+        courses.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.name;
+            option.textContent = c.name;
+            courseSelect.appendChild(option);
+        });
+
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+// Render courses
+function renderCourses(courses) {
+    adminCourseList.innerHTML = '';
+    courses.forEach(c => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <strong>${c.name}</strong>
+            <div class="actions">
+                <button onclick="deleteCourse('${c._id}')">Delete Course</button>
+                <button onclick="toggleFiles('${c.name}', '${c._id}')">View Files</button>
+            </div>
+            <div class="search-box" id="fileSearchBox-${c._id}" style="display:none;">
+                <input type="text" placeholder="Search Files..." oninput="filterFiles('${c._id}')">
+            </div>
+            <ul id="files-${c._id}" style="margin-left:20px;"></ul>
+        `;
+        adminCourseList.appendChild(li);
+    });
+}
+
+// Filter courses
+function filterCourses() {
+    const query = document.getElementById('courseSearch').value.toLowerCase();
+    const filtered = allCourses.filter(c => c.name.toLowerCase().includes(query));
+    renderCourses(filtered);
+}
+
+// Toggle files
+async function toggleFiles(courseName, courseId) {
+    const ul = document.getElementById(`files-${courseId}`);
+    const searchBox = document.getElementById(`fileSearchBox-${courseId}`);
+    if(ul.style.display === 'block') {
+        ul.style.display = 'none';
+        searchBox.style.display = 'none';
+        return;
+    }
+    ul.style.display = 'block';
+    searchBox.style.display = 'block';
+    ul.innerHTML = 'Loading...';
+
+    const res = await fetch(`${apiBase}/files/${courseName}`);
+    const files = await res.json();
+    ul.dataset.files = JSON.stringify(files);
+    renderFiles(courseId, files);
+}
+
+// Render files
+function renderFiles(courseId, files) {
+    const ul = document.getElementById(`files-${courseId}`);
+    ul.innerHTML = '';
+    files.forEach(f => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            ${f.title} 
+            <span>
+                <a href="${apiBase}/${f.url}" target="_blank">View/Download</a>
+                <button onclick="deleteFile('${f._id}', '${courseId}')">Delete File</button>
+            </span>
+        `;
+        ul.appendChild(li);
+    });
+}
+
+// Filter files
+function filterFiles(courseId) {
+    const query = document.querySelector(`#fileSearchBox-${courseId} input`).value.toLowerCase();
+    const files = JSON.parse(document.getElementById(`files-${courseId}`).dataset.files || '[]');
+    const filtered = files.filter(f => f.title.toLowerCase().includes(query));
+    renderFiles(courseId, filtered);
+}
+
+// Add course
+async function addCourse() {
+    const name = document.getElementById('newCourse').value.trim();
+    if(!name) return alert('Enter course name');
+
+    const res = await fetch(`${apiBase}/admin/add-course`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name})
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadCourses();
+}
+
+// Add file via URL
+async function addFile() {
+    const title = document.getElementById('fileTitle').value.trim();
+    const url = document.getElementById('fileURL').value.trim();
+    const course = courseSelect.value;
+    if(!title || !url) return alert('Enter title and URL');
+
+    const res = await fetch(`${apiBase}/admin/add-file`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({title, url, course})
+    });
+    const data = await res.json();
+    alert(data.message);
+}
+
+// Upload file
+async function uploadFile() {
+    const file = document.getElementById('fileUpload').files[0];
+    const title = document.getElementById('fileTitle').value.trim();
+    const course = courseSelect.value;
+    if(!file || !title) return alert('Select file and enter title');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    formData.append('course', course);
+
+    const res = await fetch(`${apiBase}/admin/upload-file`, { method: 'POST', body: formData });
+    const data = await res.json();
+    alert(data.message);
+}
+
+// Delete course
+async function deleteCourse(id) {
+    if(!confirm('Delete this course and all its files?')) return;
+    const res = await fetch(`${apiBase}/admin/delete-course/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    alert(data.message);
+    loadCourses();
+}
+
+// Delete file
+async function deleteFile(fileId, courseId) {
+    if(!confirm('Delete this file?')) return;
+    const res = await fetch(`${apiBase}/admin/delete-file/${fileId}`, { method: 'DELETE' });
+    const data = await res.json();
+    alert(data.message);
+    const ul = document.getElementById(`files-${courseId}`);
+    const courseName = allCourses.find(c => c._id === courseId)?.name;
+    if(courseName) toggleFiles(courseName, courseId);
+}
+
+// Initial load
+loadCourses();
+</script>
+</body>
+</html>
