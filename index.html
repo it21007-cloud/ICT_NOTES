@@ -7,29 +7,31 @@
 </head>
 <body>
 <div class="container">
-<h1>Welcome to Course Portal</h1>
+    <h1>Welcome to Course Portal</h1>
 
-<!-- Admin Login -->
-<button onclick="showAdminLogin()">Admin Panel</button>
-<div id="adminLogin" style="display:none; margin-top:10px;">
-    <input type="password" id="adminPassword" placeholder="Enter admin password">
-    <button onclick="checkAdminPassword()">Enter</button>
-</div>
+    <!-- Admin Login -->
+    <button onclick="showAdminLogin()">Admin Panel</button>
+    <div id="adminLogin" style="display:none; margin-top:10px;">
+        <input type="password" id="adminPassword" placeholder="Enter admin password">
+        <button onclick="checkAdminPassword()">Enter</button>
+    </div>
 
-<hr>
+    <hr>
 
-<h2>Available Courses</h2>
-<input type="text" id="courseSearch" placeholder="Search courses">
-<ul id="courseList"></ul>
+    <h2>Available Courses</h2>
+    <input type="text" id="courseSearch" placeholder="Search courses">
+    <ul id="courseList"></ul>
 </div>
 
 <script>
 const courseList = document.getElementById('courseList');
 
+// Show admin login
 function showAdminLogin(){
     document.getElementById('adminLogin').style.display = 'block';
 }
 
+// Check admin password
 function checkAdminPassword(){
     const pw = document.getElementById('adminPassword').value;
     if(pw === '12345'){
@@ -39,10 +41,10 @@ function checkAdminPassword(){
     }
 }
 
-// Load courses
+// Load courses from Render backend
 async function loadCourses(){
     try {
-        const res = await fetch('http://localhost:3000/courses');
+        const res = await fetch('https://ict-notes.onrender.com/courses'); // <-- Updated URL
         const courses = await res.json();
         courseList.innerHTML = '';
 
@@ -65,7 +67,7 @@ async function loadCourses(){
     }
 }
 
-// Filter courses
+// Filter courses dynamically
 document.getElementById('courseSearch').addEventListener('keyup', () => {
     const filter = document.getElementById('courseSearch').value.toLowerCase();
     document.querySelectorAll('#courseList li').forEach(li => {
