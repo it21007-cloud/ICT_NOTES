@@ -4,13 +4,90 @@
 <meta charset="UTF-8">
 <title>Course Files</title>
 <link rel="stylesheet" href="style.css">
+<style>
+.container {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 25px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #1e40af;
+    margin-bottom: 20px;
+}
+
+#fileSearch {
+    width: 100%;
+    max-width: 300px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    margin-bottom: 20px;
+}
+
+#fileList {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.file-card {
+    padding: 15px;
+    background: #f9fafb;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.file-card h4 {
+    margin-bottom: 10px;
+}
+
+/* Images */
+.file-card img {
+    max-width: 100%;
+    border-radius: 6px;
+}
+
+/* YouTube Videos */
+.file-card iframe {
+    width: 100%;
+    height: 220px;
+    margin-bottom: 5px;
+}
+
+/* Links */
+.file-card a {
+    display: inline-block;
+    margin-top: 5px;
+    color: #3b82f6;
+    text-decoration: none;
+}
+.file-card a:hover { text-decoration: underline; }
+
+/* Back Button */
+.btn {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 8px 16px;
+    background: #3b82f6;
+    color: #fff;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.btn:hover { background: #2563eb; }
+</style>
 </head>
 <body>
 <div class="container">
-  <h1 id="courseName"></h1>
-  <input type="text" id="fileSearch" placeholder="Search files">
-  <div id="fileList"></div>
-  <a href="index.html" class="btn">Back to Courses</a>
+    <h1 id="courseName"></h1>
+    <input type="text" id="fileSearch" placeholder="Search files">
+    <div id="fileList"></div>
+    <a href="index.html" class="btn">Back to Courses</a>
 </div>
 
 <script>
@@ -18,15 +95,17 @@ const params = new URLSearchParams(window.location.search);
 const courseName = params.get('course');
 document.getElementById('courseName').innerText = courseName;
 
+const apiBase = 'https://ict-notes.onrender.com'; // your backend URL
 let files = [];
 
-// Helper to embed YouTube
+// Convert YouTube URL to embed link
 function youtubeEmbed(url){
     if(!url.includes("youtube.com")) return url;
     const videoId = new URL(url).searchParams.get("v");
     return `https://www.youtube.com/embed/${videoId}`;
 }
 
+// Display all file types
 function displayFiles(fileArray){
     const list = document.getElementById('fileList');
     list.innerHTML = '';
@@ -37,35 +116,40 @@ function displayFiles(fileArray){
     }
 
     fileArray.forEach(f => {
-        const lowerURL = f.url.toLowerCase();
         const div = document.createElement('div');
+        div.classList.add('file-card');
+        let content = `<h4>${f.title}</h4>`;
 
-        // PDF files
-        if(lowerURL.endsWith(".pdf")){
-            div.classList.add('pdf-file');
-            div.innerHTML = `<h4>${f.title}</h4><a href="${f.url}" target="_blank">View PDF</a>`;
-        }
+        const url = f.url.toLowerCase();
+
         // Images
-        else if(lowerURL.endsWith(".jpg") || lowerURL.endsWith(".jpeg") || lowerURL.endsWith(".png") || lowerURL.endsWith(".gif")){
-            div.innerHTML = `<h4>${f.title}</h4><img src="${f.url}" alt="${f.title}">`;
+        if(url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.png') || url.endsWith('.gif')){
+            content += `<img src="${apiBase}/${f.url}" alt="${f.title}">`;
         }
         // YouTube videos
-        else if(lowerURL.includes("youtube.com")){
-            div.innerHTML = `<h4>${f.title}</h4><iframe width="100%" height="220" src="${youtubeEmbed(f.url)}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        else if(url.includes('youtube.com')){
+            const embedUrl = youtubeEmbed(f.url);
+            content += `<iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+            content += `<a href="${f.url}" target="_blank">Watch on YouTube</a>`;
         }
-        // Other links
+        // PDFs
+        else if(url.endsWith('.pdf')){
+            content += `<a href="${apiBase}/${f.url}" target="_blank">View PDF</a>`;
+        }
+        // Other files
         else {
-            div.innerHTML = `<h4>${f.title}</h4><a href="${f.url}" target="_blank">${f.url}</a>`;
+            content += `<a href="${apiBase}/${f.url}" target="_blank">Download File</a>`;
         }
 
+        div.innerHTML = content;
         list.appendChild(div);
     });
 }
 
-// Load files from Render backend
+// Load files from backend
 async function loadFiles(){
     try {
-        const res = await fetch(`https://ict-notes.onrender.com/files/${encodeURIComponent(courseName)}`); // <-- UPDATED
+        const res = await fetch(`${apiBase}/files/${encodeURIComponent(courseName)}`);
         files = await res.json();
         displayFiles(files);
     } catch(err){
@@ -74,11 +158,11 @@ async function loadFiles(){
     }
 }
 
-// Search files dynamically
-document.getElementById('fileSearch').addEventListener('keyup',()=>{
-    const filter = document.getElementById('fileSearch').value.toLowerCase();
-    const filteredFiles = files.filter(f => f.title.toLowerCase().includes(filter));
-    displayFiles(filteredFiles);
+// Search functionality
+document.getElementById('fileSearch').addEventListener('keyup', () => {
+    const query = document.getElementById('fileSearch').value.toLowerCase();
+    const filtered = files.filter(f => f.title.toLowerCase().includes(query));
+    displayFiles(filtered);
 });
 
 // Initial load
@@ -86,3 +170,4 @@ loadFiles();
 </script>
 </body>
 </html>
+
