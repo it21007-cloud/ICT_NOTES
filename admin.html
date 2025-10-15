@@ -20,7 +20,7 @@ body {
 
 /* ===== Container ===== */
 .container {
-    max-width: 1000px;
+    max-width: 900px;
     margin: auto;
     background: #fff;
     padding: 25px 30px;
@@ -31,14 +31,14 @@ body {
 /* ===== Headings ===== */
 h1 {
     font-size: 28px;
-    margin-bottom: 25px;
+    margin-bottom: 20px;
     color: #111827;
     text-align: center;
 }
 h2 {
     font-size: 20px;
     margin-top: 25px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     color: #1e40af;
 }
 
@@ -117,17 +117,19 @@ ul ul li {
     background: #eef2ff;
     margin-left: 20px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 5px;
 }
 
-ul ul li a {
-    margin-left: 10px;
-    color: #2563eb;
-    text-decoration: none;
+ul ul li img {
+    max-width: 300px;
+    max-height: 200px;
 }
-ul ul li a:hover {
-    text-decoration: underline;
+
+ul ul li iframe {
+    width: 100%;
+    max-width: 400px;
+    height: 220px;
 }
 
 /* Responsive */
@@ -173,11 +175,11 @@ ul ul li a:hover {
 <script>
 const courseSelect = document.getElementById('courseSelect');
 const adminCourseList = document.getElementById('adminCourseList');
-// ✅ Updated API base to Render
-const apiBase = 'https://ict-notes.onrender.com';
+// Render backend URL
+const apiBase = 'https://ict-notes.onrender.com'; 
 let allCourses = [];
 
-// Load courses from backend
+// Load courses
 async function loadCourses() {
     try {
         const res = await fetch(`${apiBase}/courses`);
@@ -199,7 +201,7 @@ async function loadCourses() {
     }
 }
 
-// Render courses and their files
+// Render courses
 function renderCourses(courses) {
     adminCourseList.innerHTML = '';
     courses.forEach(c => {
@@ -219,14 +221,14 @@ function renderCourses(courses) {
     });
 }
 
-// Filter courses dynamically
+// Filter courses
 function filterCourses() {
     const query = document.getElementById('courseSearch').value.toLowerCase();
     const filtered = allCourses.filter(c => c.name.toLowerCase().includes(query));
     renderCourses(filtered);
 }
 
-// Toggle files display
+// Toggle files
 async function toggleFiles(courseName, courseId) {
     const ul = document.getElementById(`files-${courseId}`);
     const searchBox = document.getElementById(`fileSearchBox-${courseId}`);
@@ -245,24 +247,37 @@ async function toggleFiles(courseName, courseId) {
     renderFiles(courseId, files);
 }
 
-// Render files inside a course
+// Render files with inline previews
 function renderFiles(courseId, files) {
     const ul = document.getElementById(`files-${courseId}`);
     ul.innerHTML = '';
     files.forEach(f => {
         const li = document.createElement('li');
-        li.innerHTML = `
-            ${f.title} 
-            <span>
-                <a href="${apiBase}/${f.url}" target="_blank">View/Download</a>
-                <button onclick="deleteFile('${f._id}', '${courseId}')">Delete File</button>
-            </span>
-        `;
+        const lowerURL = f.url.toLowerCase();
+        let content = `<strong>${f.title}</strong>`;
+
+        if(lowerURL.endsWith('.pdf')){
+            content += `<br><a href="${apiBase}/${f.url}" target="_blank">View/Download PDF</a>`;
+        } 
+        else if(lowerURL.endsWith('.jpg') || lowerURL.endsWith('.png') || lowerURL.endsWith('.jpeg') || lowerURL.endsWith('.gif')){
+            content += `<br><img src="${apiBase}/${f.url}" alt="${f.title}">`;
+        } 
+        else if(lowerURL.includes('youtube.com')){
+            const videoId = new URL(f.url).searchParams.get('v');
+            content += `<br><iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>`;
+            content += `<br><a href="${f.url}" target="_blank">Watch on YouTube</a>`;
+        } 
+        else {
+            content += `<br><a href="${apiBase}/${f.url}" target="_blank">View File</a>`;
+        }
+
+        content += ` <button onclick="deleteFile('${f._id}', '${courseId}')">Delete</button>`;
+        li.innerHTML = content;
         ul.appendChild(li);
     });
 }
 
-// Filter files dynamically
+// Filter files
 function filterFiles(courseId) {
     const query = document.querySelector(`#fileSearchBox-${courseId} input`).value.toLowerCase();
     const files = JSON.parse(document.getElementById(`files-${courseId}`).dataset.files || '[]');
@@ -270,7 +285,7 @@ function filterFiles(courseId) {
     renderFiles(courseId, filtered);
 }
 
-// Add new course
+// Add course
 async function addCourse() {
     const name = document.getElementById('newCourse').value.trim();
     if(!name) return alert('Enter course name');
@@ -299,9 +314,10 @@ async function addFile() {
     });
     const data = await res.json();
     alert(data.message);
+    loadCourses();
 }
 
-// Upload file from local machine
+// Upload file
 async function uploadFile() {
     const file = document.getElementById('fileUpload').files[0];
     const title = document.getElementById('fileTitle').value.trim();
@@ -316,6 +332,7 @@ async function uploadFile() {
     const res = await fetch(`${apiBase}/admin/upload-file`, { method: 'POST', body: formData });
     const data = await res.json();
     alert(data.message);
+    loadCourses();
 }
 
 // Delete course
@@ -333,7 +350,6 @@ async function deleteFile(fileId, courseId) {
     const res = await fetch(`${apiBase}/admin/delete-file/${fileId}`, { method: 'DELETE' });
     const data = await res.json();
     alert(data.message);
-    const ul = document.getElementById(`files-${courseId}`);
     const courseName = allCourses.find(c => c._id === courseId)?.name;
     if(courseName) toggleFiles(courseName, courseId);
 }
@@ -343,3 +359,4 @@ loadCourses();
 </script>
 </body>
 </html>
+
