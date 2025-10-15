@@ -20,7 +20,7 @@ body {
 
 /* ===== Container ===== */
 .container {
-    max-width: 900px;
+    max-width: 1000px;
     margin: auto;
     background: #fff;
     padding: 25px 30px;
@@ -31,18 +31,18 @@ body {
 /* ===== Headings ===== */
 h1 {
     font-size: 28px;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
     color: #111827;
     text-align: center;
 }
 h2 {
     font-size: 20px;
     margin-top: 25px;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
     color: #1e40af;
 }
 
-/* ===== Form Row (everything in one line) ===== */
+/* ===== Form Row ===== */
 .form-row {
     display: flex;
     flex-wrap: wrap;
@@ -173,10 +173,11 @@ ul ul li a:hover {
 <script>
 const courseSelect = document.getElementById('courseSelect');
 const adminCourseList = document.getElementById('adminCourseList');
-const apiBase = 'http://localhost:3000'; 
+// ✅ Updated API base to Render
+const apiBase = 'https://ict-notes.onrender.com';
 let allCourses = [];
 
-// Load courses
+// Load courses from backend
 async function loadCourses() {
     try {
         const res = await fetch(`${apiBase}/courses`);
@@ -198,7 +199,7 @@ async function loadCourses() {
     }
 }
 
-// Render courses
+// Render courses and their files
 function renderCourses(courses) {
     adminCourseList.innerHTML = '';
     courses.forEach(c => {
@@ -218,14 +219,14 @@ function renderCourses(courses) {
     });
 }
 
-// Filter courses
+// Filter courses dynamically
 function filterCourses() {
     const query = document.getElementById('courseSearch').value.toLowerCase();
     const filtered = allCourses.filter(c => c.name.toLowerCase().includes(query));
     renderCourses(filtered);
 }
 
-// Toggle files
+// Toggle files display
 async function toggleFiles(courseName, courseId) {
     const ul = document.getElementById(`files-${courseId}`);
     const searchBox = document.getElementById(`fileSearchBox-${courseId}`);
@@ -238,13 +239,13 @@ async function toggleFiles(courseName, courseId) {
     searchBox.style.display = 'block';
     ul.innerHTML = 'Loading...';
 
-    const res = await fetch(`${apiBase}/files/${courseName}`);
+    const res = await fetch(`${apiBase}/files/${encodeURIComponent(courseName)}`);
     const files = await res.json();
     ul.dataset.files = JSON.stringify(files);
     renderFiles(courseId, files);
 }
 
-// Render files
+// Render files inside a course
 function renderFiles(courseId, files) {
     const ul = document.getElementById(`files-${courseId}`);
     ul.innerHTML = '';
@@ -261,7 +262,7 @@ function renderFiles(courseId, files) {
     });
 }
 
-// Filter files
+// Filter files dynamically
 function filterFiles(courseId) {
     const query = document.querySelector(`#fileSearchBox-${courseId} input`).value.toLowerCase();
     const files = JSON.parse(document.getElementById(`files-${courseId}`).dataset.files || '[]');
@@ -269,7 +270,7 @@ function filterFiles(courseId) {
     renderFiles(courseId, filtered);
 }
 
-// Add course
+// Add new course
 async function addCourse() {
     const name = document.getElementById('newCourse').value.trim();
     if(!name) return alert('Enter course name');
@@ -300,7 +301,7 @@ async function addFile() {
     alert(data.message);
 }
 
-// Upload file
+// Upload file from local machine
 async function uploadFile() {
     const file = document.getElementById('fileUpload').files[0];
     const title = document.getElementById('fileTitle').value.trim();
