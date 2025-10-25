@@ -53,20 +53,19 @@ h1 {
     border-radius: 6px;
 }
 
-/* YouTube & Drive Videos */
+/* Iframes for video, drive, pdf */
 .file-card iframe {
     width: 100%;
     height: 400px;
-    margin-bottom: 8px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: none;
+    margin-bottom: 10px;
 }
 
 /* Links */
 .file-card a {
     display: inline-block;
-    margin-top: 5px;
-    color: #3b82f6;
+    color: #2563eb;
     text-decoration: none;
     font-weight: 500;
 }
@@ -83,7 +82,7 @@ h1 {
     text-decoration: none;
     transition: all 0.2s;
 }
-.btn:hover { background: #2563eb; }
+.btn:hover { background: #1d4ed8; }
 </style>
 </head>
 <body>
@@ -99,22 +98,36 @@ const params = new URLSearchParams(window.location.search);
 const courseName = params.get('course');
 document.getElementById('courseName').innerText = courseName;
 
-const apiBase = 'https://ict-notes.onrender.com'; // your backend URL
+const apiBase = 'https://ict-notes.onrender.com'; // same as your backend
 let files = [];
 
-// Convert YouTube URL to embed link
-function youtubeEmbed(url){
-    if(!url.includes("youtube.com")) return url;
-    const videoId = new URL(url).searchParams.get("v");
-    return `https://www.youtube.com/embed/${videoId}`;
+// ✅ Convert YouTube or Drive links to embed format
+function getEmbedLink(url) {
+    if (!url) return null;
+
+    // YouTube normal or short link
+    if (url.includes("youtube.com/watch?v=")) {
+        const videoId = new URL(url).searchParams.get("v");
+        return `https://www.youtube.com/embed/${videoId}`;
+    } else if (url.includes("youtu.be/")) {
+        const videoId = url.split("youtu.be/")[1].split("?")[0];
+        return `https://www.youtube.com/embed/${videoId}`;
+    }
+    // Google Drive
+    else if (url.includes("drive.google.com")) {
+        const match = url.match(/[-\w]{25,}/);
+        return match ? `https://drive.google.com/file/d/${match[0]}/preview` : url;
+    }
+    // otherwise return the original url
+    return url;
 }
 
-// Display all file types
-function displayFiles(fileArray){
+// ✅ Display files
+function displayFiles(fileArray) {
     const list = document.getElementById('fileList');
     list.innerHTML = '';
 
-    if(fileArray.length === 0){
+    if (fileArray.length === 0) {
         list.innerHTML = '<p>No files available</p>';
         return;
     }
@@ -123,41 +136,29 @@ function displayFiles(fileArray){
         const div = document.createElement('div');
         div.classList.add('file-card');
         let content = `<h4>${f.title}</h4>`;
+        const url = f.url;
+        const lower = url.toLowerCase();
+        const embed = getEmbedLink(url);
 
-        const url = f.url.toLowerCase();
-
-        // Images
-        if(url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.png') || url.endsWith('.gif')){
-            content += `<img src="${apiBase}/${f.url}" alt="${f.title}">`;
+        // Local images
+        if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif')) {
+            content += `<img src="${apiBase}/${url}" alt="${f.title}">`;
         }
-        // YouTube videos
-        else if(url.includes('youtube.com')){
-            const embedUrl = youtubeEmbed(f.url);
-            content += `<iframe src="${embedUrl}" allowfullscreen></iframe>`;
-            content += `<a href="${f.url}" target="_blank">Watch on YouTube</a>`;
+        // YouTube / Google Drive (iframe)
+        else if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('drive.google.com')) {
+            content += `<iframe src="${embed}" allowfullscreen></iframe>`;
         }
-        // PDFs (from backend)
-        else if(url.endsWith('.pdf')){
-            content += `<iframe src="${apiBase}/${f.url}" width="100%" height="400"></iframe>`;
-            content += `<a href="${apiBase}/${f.url}" target="_blank">Open PDF</a>`;
+        // Local PDFs
+        else if (lower.endsWith('.pdf')) {
+            content += `<iframe src="${apiBase}/${url}" allowfullscreen></iframe>`;
         }
-        // Google Drive links
-        else if (f.url.includes('drive.google.com')) {
-            const fileIdMatch = f.url.match(/[-\w]{25,}/);
-            if (fileIdMatch) {
-                const embedDrive = `https://drive.google.com/file/d/${fileIdMatch[0]}/preview`;
-                content += `<iframe src="${embedDrive}" allow="autoplay"></iframe>`;
-            } else {
-                content += `<a href="${f.url}" target="_blank">Open Google Drive File</a>`;
-            }
-        }
-        // Any other external website link
-        else if (f.url.startsWith('http')) {
-            content += `<a href="${f.url}" target="_blank">Open Link</a>`;
+        // Any external link (website)
+        else if (url.startsWith('http')) {
+            content += `<a href="${url}" target="_blank">Open Link</a>`;
         }
         // Other uploaded files
         else {
-            content += `<a href="${apiBase}/${f.url}" target="_blank">Download File</a>`;
+            content += `<a href="${apiBase}/${url}" target="_blank">Download File</a>`;
         }
 
         div.innerHTML = content;
@@ -165,19 +166,19 @@ function displayFiles(fileArray){
     });
 }
 
-// Load files from backend
-async function loadFiles(){
+// ✅ Load files from backend
+async function loadFiles() {
     try {
         const res = await fetch(`${apiBase}/files/${encodeURIComponent(courseName)}`);
         files = await res.json();
         displayFiles(files);
-    } catch(err){
+    } catch (err) {
         console.error(err);
         document.getElementById('fileList').innerHTML = '<p>Error loading files</p>';
     }
 }
 
-// Search functionality
+// ✅ Search feature
 document.getElementById('fileSearch').addEventListener('keyup', () => {
     const query = document.getElementById('fileSearch').value.toLowerCase();
     const filtered = files.filter(f => f.title.toLowerCase().includes(query));
@@ -189,5 +190,3 @@ loadFiles();
 </script>
 </body>
 </html>
-
-
