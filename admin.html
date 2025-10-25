@@ -175,7 +175,6 @@ ul ul li iframe {
 <script>
 const courseSelect = document.getElementById('courseSelect');
 const adminCourseList = document.getElementById('adminCourseList');
-// Render backend URL
 const apiBase = 'https://ict-notes.onrender.com'; 
 let allCourses = [];
 
@@ -187,7 +186,6 @@ async function loadCourses() {
         allCourses = courses;
         renderCourses(courses);
 
-        // Populate dropdown
         courseSelect.innerHTML = '';
         courses.forEach(c => {
             const option = document.createElement('option');
@@ -247,25 +245,43 @@ async function toggleFiles(courseName, courseId) {
     renderFiles(courseId, files);
 }
 
-// Render files with inline previews
+// Render files with inline previews (includes Google Drive/Docs)
 function renderFiles(courseId, files) {
     const ul = document.getElementById(`files-${courseId}`);
     ul.innerHTML = '';
     files.forEach(f => {
         const li = document.createElement('li');
-        const lowerURL = f.url.toLowerCase();
         let content = `<strong>${f.title}</strong>`;
+        const lowerURL = f.url.toLowerCase();
 
-        if(lowerURL.endsWith('.pdf')){
-            content += `<br><a href="${apiBase}/${f.url}" target="_blank">View/Download PDF</a>`;
-        } 
-        else if(lowerURL.endsWith('.jpg') || lowerURL.endsWith('.png') || lowerURL.endsWith('.jpeg') || lowerURL.endsWith('.gif')){
+        // Images
+        if(lowerURL.endsWith('.jpg') || lowerURL.endsWith('.png') || lowerURL.endsWith('.jpeg') || lowerURL.endsWith('.gif')) {
             content += `<br><img src="${apiBase}/${f.url}" alt="${f.title}">`;
-        } 
-        else if(lowerURL.includes('youtube.com')){
+        }
+        // PDFs
+        else if(lowerURL.endsWith('.pdf')) {
+            content += `<br><a href="${apiBase}/${f.url}" target="_blank">View/Download PDF</a>`;
+        }
+        // YouTube
+        else if(lowerURL.includes('youtube.com')) {
             const videoId = new URL(f.url).searchParams.get('v');
             content += `<br><iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>`;
             content += `<br><a href="${f.url}" target="_blank">Watch on YouTube</a>`;
+        }
+        // Google Drive / Docs
+        else if(f.url.includes('drive.google.com')) {
+            const fileIdMatch = f.url.match(/[-\w]{25,}/);
+            if(fileIdMatch) {
+                const embedUrl = `https://drive.google.com/file/d/${fileIdMatch[0]}/preview`;
+                content += `<br><iframe src="${embedUrl}" allow="autoplay"></iframe>`;
+                content += `<br><a href="${f.url}" target="_blank">Open in Google Drive</a>`;
+            } else {
+                content += `<br><a href="${f.url}" target="_blank">Open File</a>`;
+            }
+        }
+        // Other external links
+        else if(f.url.startsWith('http')) {
+            content += `<br><a href="${f.url}" target="_blank">Open Link</a>`;
         } 
         else {
             content += `<br><a href="${apiBase}/${f.url}" target="_blank">View File</a>`;
@@ -359,4 +375,5 @@ loadCourses();
 </script>
 </body>
 </html>
+
 
