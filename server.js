@@ -1,4 +1,5 @@
 // server.js
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -9,15 +10,20 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // serve uploaded files
+
+// Serve uploaded files publicly
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ----------------------
 // MongoDB Connection
 // ----------------------
-const mongoURL = process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/courseDB';
-mongoose.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+const mongoURL =
+  process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/courseDB';
+
+mongoose
+  .connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch((err) => console.error('❌ MongoDB connection error:', err));
 
 // ----------------------
 // Schemas
@@ -26,142 +32,159 @@ const courseSchema = new mongoose.Schema({ name: String });
 const Course = mongoose.model('Course', courseSchema);
 
 const fileSchema = new mongoose.Schema({
-    title: String,
-    url: String,       // YouTube link, direct link, or local path
-    course: String
+  title: String,
+  url: String, // can be uploaded path or external URL
+  course: String,
 });
 const File = mongoose.model('File', fileSchema);
 
 // ----------------------
-// Multer setup for local uploads
+// Multer setup
 // ----------------------
-const upload = multer({ dest: 'uploads/' });
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename: (req, file, cb) => {
+    const safeName =
+      Date.now() + '-' + file.originalname.replace(/\s+/g, '_');
+    cb(null, safeName);
+  },
+});
+const upload = multer({ storage });
 
 // ----------------------
 // Routes
 // ----------------------
 
-// Get all courses
+// ✅ Get all courses
 app.get('/courses', async (req, res) => {
-    try {
-        const courses = await Course.find({});
-        res.json(courses);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to fetch courses' });
-    }
+  try {
+    const courses = await Course.find({});
+    res.json(courses);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch courses' });
+  }
 });
 
-// Get all files for a course
+// ✅ Get files for a specific course
 app.get('/files/:course', async (req, res) => {
-    try {
-        const files = await File.find({ course: req.params.course });
-        res.json(files);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to fetch files' });
-    }
+  try {
+    const courseName = decodeURIComponent(req.params.course);
+    const files = await File.find({ course: courseName });
+    res.json(files);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch files' });
+  }
 });
 
-// Admin: Add a new course
+// ✅ Add new course
 app.post('/admin/add-course', async (req, res) => {
-    try {
-        const { name } = req.body;
-        if (!name) return res.status(400).json({ message: 'Course name is required' });
+  try {
+    const { name } = req.body;
+    if (!name)
+      return res.status(400).json({ message: 'Course name is required' });
 
-        const existing = await Course.findOne({ name });
-        if (existing) return res.status(400).json({ message: 'Course already exists' });
+    const existing = await Course.findOne({ name });
+    if (existing)
+      return res.status(400).json({ message: 'Course already exists' });
 
-        await Course.create({ name });
-        res.json({ message: 'Course added successfully' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error adding course' });
-    }
+    await Course.create({ name });
+    res.json({ message: 'Course added successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error adding course' });
+  }
 });
 
-// Admin: Add file via URL
+// ✅ Add file via URL
 app.post('/admin/add-file', async (req, res) => {
-    try {
-        const { title, url, course } = req.body;
-        if (!title || !url || !course) return res.status(400).json({ message: 'Missing fields' });
+  try {
+    const { title, url, course } = req.body;
+    if (!title || !url || !course)
+      return res.status(400).json({ message: 'Missing fields' });
 
-        let c = await Course.findOne({ name: course });
-        if (!c) c = await Course.create({ name: course });
+    let c = await Course.findOne({ name: course });
+    if (!c) await Course.create({ name: course });
 
-        await File.create({ title, url, course });
-        res.json({ message: 'File added successfully' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error adding file' });
-    }
+    await File.create({ title, url, course });
+    res.json({ message: 'File added successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error adding file' });
+  }
 });
 
-// Admin: Upload file from local machine
+// ✅ Upload file from local PC
 app.post('/admin/upload-file', upload.single('file'), async (req, res) => {
-    try {
-        const { title, course } = req.body;
-        const file = req.file;
+  try {
+    const { title, course } = req.body;
+    const file = req.file;
+    if (!title || !course || !file)
+      return res.status(400).json({ message: 'Missing fields or file' });
 
-        if (!title || !course || !file) return res.status(400).json({ message: 'Missing fields or file' });
+    let c = await Course.findOne({ name: course });
+    if (!c) await Course.create({ name: course });
 
-        let c = await Course.findOne({ name: course });
-        if (!c) c = await Course.create({ name: course });
+    const fileUrl = `uploads/${file.filename}`;
 
-        // Save file path as URL
-        const fileUrl = `uploads/${file.filename}-${file.originalname}`;
-        fs.renameSync(file.path, fileUrl);
-
-        await File.create({ title, url: fileUrl, course });
-        res.json({ message: 'File uploaded successfully' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error uploading file' });
-    }
+    await File.create({ title, url: fileUrl, course });
+    res.json({ message: 'File uploaded successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error uploading file' });
+  }
 });
 
-// Admin: Delete a file
+// ✅ Delete a file
 app.delete('/admin/delete-file/:id', async (req, res) => {
-    try {
-        const file = await File.findById(req.params.id);
-        if (!file) return res.status(404).json({ message: 'File not found' });
+  try {
+    const file = await File.findById(req.params.id);
+    if (!file) return res.status(404).json({ message: 'File not found' });
 
-        // Delete local file if it exists
-        if (file.url.startsWith('uploads/')) {
-            fs.unlink(file.url, err => { if(err) console.error(err); });
-        }
-
-        await file.deleteOne();
-        res.json({ message: 'File deleted successfully' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error deleting file' });
+    // delete physical file if stored locally
+    if (file.url.startsWith('uploads/')) {
+      const filePath = path.join(__dirname, file.url);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
+
+    await file.deleteOne();
+    res.json({ message: 'File deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error deleting file' });
+  }
 });
 
-// Admin: Delete a course along with its files
+// ✅ Delete a course + its files
 app.delete('/admin/delete-course/:id', async (req, res) => {
-    try {
-        const course = await Course.findById(req.params.id);
-        if (!course) return res.status(404).json({ message: 'Course not found' });
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course)
+      return res.status(404).json({ message: 'Course not found' });
 
-        // Delete all files associated with the course
-        const files = await File.find({ course: course.name });
-        for (const file of files) {
-            if(file.url.startsWith('uploads/')) fs.unlinkSync(file.url);
-            await file.deleteOne();
-        }
-
-        await course.deleteOne();
-        res.json({ message: 'Course and its files deleted successfully' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error deleting course' });
+    const files = await File.find({ course: course.name });
+    for (const file of files) {
+      if (file.url.startsWith('uploads/')) {
+        const filePath = path.join(__dirname, file.url);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+      await file.deleteOne();
     }
+
+    await course.deleteOne();
+    res.json({ message: 'Course and its files deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error deleting course' });
+  }
 });
 
 // ----------------------
-// Start server
+// Start Server
 // ----------------------
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
+);
